@@ -1,14 +1,13 @@
 FROM ubuntu:20.04
 
-# ডিপেন্ডেন্সি ও নন-ইন্টারেক্টিভ মোড সেটআপ
+# ডিপেন্ডেন্সি ও নন-ইন্টারেক্টিভ মোড
 ENV DEBIAN_FRONTEND=noninteractive
 ENV RESOLUTION=1024x768
 
-# বেসিক টুলস ও কী-ম্যানেজমেন্ট টুলস ইনস্টল
+# প্যাকেজ আপডেট ও ফায়ারফক্সসহ প্রয়োজনীয় টুলস ইনস্টল
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
-    gnupg \
     ca-certificates \
     xfce4 \
     xfce4-terminal \
@@ -16,18 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tigervnc-common \
     novnc \
     websockify \
-    git \
+    firefox \
     python3 \
+    python3-pip \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Google Chrome রিপোজিটরির ভ্যালিড সাইনিং কী যোগ ও Chrome ইনস্টল
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/trusted.gpg.d/google-chrome.gpg \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
-
-# VNC ও স্টার্টআপ কনফিগারেশন
+# VNC ও পোর্ট কনফিগারেশন
 ENV DISPLAY=:1
 ENV VNC_PORT=5901
 ENV NO_VNC_PORT=8080
