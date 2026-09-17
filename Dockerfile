@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 # আপনার নতুন কাঙ্ক্ষিত সাইজ 
-ENV RESOLUTION=990x768
+ENV RESOLUTION=990x700
 ENV BRAND_NAME="Dark Killer"
 
 # প্রয়োজনীয় প্যাকেজ ও socat ইনস্টল
@@ -21,9 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     && rm -rf /var/lib/apt/lists/*
 
-# ফায়ারফক্সে অটোমেটিক H143 প্রক্সি সেটআপ (proxy.h143.xyz:8080)
+# ফায়ারফক্স স্পিড অপ্টিমাইজেশন (স্লো প্রক্সি রিমুভ করে ডাইরেক্ট কানেকশন এবং ক্লাউডফ্লেয়ার ফাস্ট DNS সেটআপ)
 RUN mkdir -p /usr/lib/firefox/distribution && \
-    echo '{"policies": {"Proxy": {"Mode": "manual", "HTTPProxy": "proxy.h143.xyz:8080", "SSLProxy": "proxy.h143.xyz:8080", "UseHTTPProxyForAllProtocols": true}}}' > /usr/lib/firefox/distribution/policies.json
+    echo '{"policies": {"Proxy": {"Mode": "none"}, "Preferences": {"network.trr.mode": 2, "network.trr.uri": "https://mozilla.cloudflare-dns.com/dns-query"}}}' > /usr/lib/firefox/distribution/policies.json
 
 # ব্যানার ডাউনলোড ও ব্যাকগ্রাউন্ড রিপ্লেস
 RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
