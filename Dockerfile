@@ -1,8 +1,8 @@
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-# চওড়া হালকা কমিয়ে পারফেক্ট মোবাইল-ফ্রেন্ডলি ওয়াইডস্ক্রিন সাইজ
-ENV RESOLUTION=960x540
+# আপনার রিকোয়েস্ট অনুযায়ী কাস্টম সাইজ
+ENV RESOLUTION=960x768
 ENV BRAND_NAME="Dark Killer"
 
 # প্রয়োজনীয় প্যাকেজ ও socat ইনস্টল
