@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 # আপনার রিকোয়েস্ট অনুযায়ী কাস্টম সাইজ
-ENV RESOLUTION=960x680
+ENV RESOLUTION=960x630
 ENV BRAND_NAME="Dark Killer"
 
 # প্রয়োজনীয় প্যাকেজ ও socat ইনস্টল
