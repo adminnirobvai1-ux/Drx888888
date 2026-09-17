@@ -1,11 +1,14 @@
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-# স্ট্যান্ডার্ড HD সাইজ দেওয়া হলো যাতে স্ক্রিন সুন্দর দেখায় এবং ব্যানার পারফেক্টলি ফিট হয়
 ENV RESOLUTION=1280x720
 ENV BRAND_NAME="Dark Killer"
 
-# প্রয়োজনীয় প্যাকেজ ও socat ইনস্টল
+# আপনার কাছে কোনো বাংলাদেশী প্রক্সি থাকলে নিচে বসাতে পারেন (ঐচ্ছিক)
+# উদাহরণ: ENV BD_PROXY="103.xxx.xxx.xxx:8080"
+ENV BD_PROXY=""
+
+# প্রয়োজনীয় প্যাকেজ ইনস্টল
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
@@ -21,18 +24,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     && rm -rf /var/lib/apt/lists/*
 
-# ফায়ারফক্সে অটোমেটিক ফাস্ট ভিপিএন এক্সটেনশন (Browsec) এবং DNS সেটআপ
+# ফায়ারফক্সে অটোমেটিক Urban VPN (বাংলাদেশ সার্ভার সাপোর্টেড) ও সিকিউর DNS কনফিগারেশন
 RUN mkdir -p /usr/lib/firefox/distribution && \
     echo '{\n\
   "policies": {\n\
     "Preferences": {\n\
       "network.trr.mode": 2,\n\
-      "network.trr.uri": "https://mozilla.cloudflare-dns.com/dns-query"\n\
+      "network.trr.uri": "https://mozilla.cloudflare-dns.com/dns-query",\n\
+      "network.dns.echconfig.enabled": true\n\
     },\n\
     "ExtensionSettings": {\n\
-      "browsec@browsec.com": {\n\
+      "urbanvpn@urbanvpn.com": {\n\
         "installation_mode": "force_installed",\n\
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/browsec/latest.xpi"\n\
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/urban-vpn/latest.xpi"\n\
       }\n\
     }\n\
   }\n\
@@ -46,7 +50,7 @@ RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg && \
     find /usr/share/backgrounds -type f -exec cp /usr/share/backgrounds/custom_bg.png {} + 2>/dev/null || true
 
-# ব্যানার ফিট কনফিগারেশন (image-style = 5 ব্যবহার করা হয়েছে যাতে ছবি অরজিনাল রেশিও বজায় রাখে)
+# ব্যানার ফিট কনফিগারেশন (Aspect Ratio ঠিক রেখে ফিট)
 RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfconf/xfce-perchannel-xml && \
     echo '<?xml version="1.0" encoding="UTF-8"?>\n\
 <channel name="xfce4-desktop" version="1.0">\n\
@@ -67,8 +71,9 @@ RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfcon
 RUN echo 'export PS1="\[\e[1;31m\][Dark-Killer]\[\e[0m\]:\w# "' >> /root/.bashrc && \
     echo 'echo -e "\n============================================\n   Welcome to Dark Killer Remote Desktop\n============================================\n"' >> /root/.bashrc
 
-# VNC ও স্টার্টআপ স্ক্রিপ্ট (এখানেও image-style 5 সেট করা আছে)
+# VNC ও স্টার্টআপ কনফিগারেশন (Xauthority ওয়ার্নিং ফিক্স)
 RUN mkdir -p /root/.vnc && \
+    touch /root/.Xauthority && \
     echo "securitytypes=None" > /root/.vnc/config && \
     echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
@@ -93,8 +98,7 @@ exec startxfce4' > /root/.vnc/xstartup && \
 RUN sed -i 's/<title>noVNC<\/title>/<title>Dark Killer<\/title>/g' /usr/share/novnc/vnc.html && \
     sed -i "s/'resize', 'off'/'resize', 'scale'/g" /usr/share/novnc/app/ui.js 2>/dev/null || true
 
-# ২০টি পোর্ট EXPOSE
 EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089
 
-# মাল্টি-পোর্ট লিসেনিং ও স্টার্টআপ কমান্ড
-CMD ["sh", "-c", "rm -rf /tmp/.X*-lock /tmp/.X11-unix/X* && vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None && for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null & done && if [ -n \"$PORT\" ] && [ \"$PORT\" != \"8080\" ]; then socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null & fi && websockify --web=/usr/share/novnc/ 8080 localhost:5901"]
+# মাল্টি-পোর্ট লিসেনিং ও স্টার্টআপ
+CMD ["sh", "-c", "rm -rf /tmp/.X*-lock /tmp/.X11-unix/X* && touch /root/.Xauthority && vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None && for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null & done && if [ -n \"$PORT\" ] && [ \"$PORT\" != \"8080\" ]; then socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null & fi && websockify --web=/usr/share/novnc/ 8080 localhost:5901"]
