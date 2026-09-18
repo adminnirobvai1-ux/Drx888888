@@ -1,13 +1,11 @@
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+# স্ট্যান্ডার্ড HD সাইজ দেওয়া হলো যাতে স্ক্রিন সুন্দর দেখায় এবং ব্যানার পারফেক্টলি ফিট হয়
 ENV RESOLUTION=1280x720
 ENV BRAND_NAME="Dark Killer"
 
-# কাস্টম ইন্ডিয়ান/বিডি প্রক্সি থাকলে নিচে দিতে পারেন (যেমন: "103.xxx.xxx.xxx:8080"), খালি রাখলে অটো ইন্ডিয়ান টানেল ব্যবহার হবে
-ENV CUSTOM_PROXY=""
-
-# প্রয়োজনীয় প্যাকেজ, ফন্টস এবং টানেল ইঞ্জিন ইনস্টল
+# প্রয়োজনীয় প্যাকেজ ও socat ইনস্টল
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
@@ -21,35 +19,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dbus-x11 \
     feh \
     socat \
-    tor \
-    xfonts-base \
-    xfonts-75dpi \
-    xfonts-100dpi \
-    xfonts-scalable \
     && rm -rf /var/lib/apt/lists/*
 
-# টর টানেলকে ইন্ডিয়ান আইপি জোরপূর্বক ব্যবহারের জন্য কনফিগার করা
-RUN echo 'SocksPort 127.0.0.1:9050\n\
-ExitNodes {in}\n\
-StrictNodes 0\n\
-NumEntryGuards 3\n\
-ClientOnly 1\n\
-' > /etc/tor/torrc
-
-# ফায়ারফক্স ব্রাউজারে ব্লক-বাইপাস এবং অটোমেটিক প্রক্সি পলিসি সেট করা
+# ফায়ারফক্সে অটোমেটিক ফাস্ট ভিপিএন এক্সটেনশন (Browsec) এবং DNS সেটআপ
 RUN mkdir -p /usr/lib/firefox/distribution && \
     echo '{\n\
   "policies": {\n\
-    "DisableAppUpdate": true,\n\
     "Preferences": {\n\
-      "network.proxy.type": 1,\n\
-      "network.proxy.socks": "127.0.0.1",\n\
-      "network.proxy.socks_port": 9050,\n\
-      "network.proxy.socks_version": 5,\n\
-      "network.proxy.socks_remote_dns": true,\n\
-      "network.dns.echconfig.enabled": false,\n\
-      "network.http.referer.XOriginPolicy": 0,\n\
-      "privacy.resistFingerprinting": false\n\
+      "network.trr.mode": 2,\n\
+      "network.trr.uri": "https://mozilla.cloudflare-dns.com/dns-query"\n\
+    },\n\
+    "ExtensionSettings": {\n\
+      "browsec@browsec.com": {\n\
+        "installation_mode": "force_installed",\n\
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/browsec/latest.xpi"\n\
+      }\n\
     }\n\
   }\n\
 }' > /usr/lib/firefox/distribution/policies.json
@@ -62,7 +46,7 @@ RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg && \
     find /usr/share/backgrounds -type f -exec cp /usr/share/backgrounds/custom_bg.png {} + 2>/dev/null || true
 
-# ব্যানার ফিট কনফিগারেশন
+# ব্যানার ফিট কনফিগারেশন (image-style = 5 ব্যবহার করা হয়েছে যাতে ছবি অরজিনাল রেশিও বজায় রাখে)
 RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfconf/xfce-perchannel-xml && \
     echo '<?xml version="1.0" encoding="UTF-8"?>\n\
 <channel name="xfce4-desktop" version="1.0">\n\
@@ -79,13 +63,12 @@ RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfcon
 </channel>' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml && \
     cp /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/
 
-# টার্মিনাল ব্যানার ও প্রম্পট
+# টার্মিনালে Dark Killer ব্র্যান্ডিং
 RUN echo 'export PS1="\[\e[1;31m\][Dark-Killer]\[\e[0m\]:\w# "' >> /root/.bashrc && \
     echo 'echo -e "\n============================================\n   Welcome to Dark Killer Remote Desktop\n============================================\n"' >> /root/.bashrc
 
-# VNC ও স্টার্টআপ কনফিগারেশন
+# VNC ও স্টার্টআপ স্ক্রিপ্ট (এখানেও image-style 5 সেট করা আছে)
 RUN mkdir -p /root/.vnc && \
-    touch /root/.Xauthority && \
     echo "securitytypes=None" > /root/.vnc/config && \
     echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
@@ -106,38 +89,12 @@ exec startxfce4' > /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup && \
     ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# ব্রাউজার টাইটেল ও স্কেলিং
+# ব্রাউজার টাইটেল Dark Killer ও অটো-স্কেল
 RUN sed -i 's/<title>noVNC<\/title>/<title>Dark Killer<\/title>/g' /usr/share/novnc/vnc.html && \
     sed -i "s/'resize', 'off'/'resize', 'scale'/g" /usr/share/novnc/app/ui.js 2>/dev/null || true
 
-# রানটাইম স্টার্টআপ স্ক্রিপ্ট
-RUN echo '#!/bin/bash\n\
-rm -rf /tmp/.X*-lock /tmp/.X11-unix/X*\n\
-touch /root/.Xauthority\n\
-\n\
-# কাস্টম প্রক্সি থাকলে পলিসিতে বসানো, না থাকলে ব্যাকগ্রাউন্ড টর চালু\n\
-if [ -n "$CUSTOM_PROXY" ]; then\n\
-    IP=$(echo $CUSTOM_PROXY | cut -d: -f1)\n\
-    PORT=$(echo $CUSTOM_PROXY | cut -d: -f2)\n\
-    sed -i "s/127.0.0.1/$IP/g" /usr/lib/firefox/distribution/policies.json\n\
-    sed -i "s/9050/$PORT/g" /usr/lib/firefox/distribution/policies.json\n\
-else\n\
-    service tor start\n\
-fi\n\
-\n\
-vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None\n\
-\n\
-for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do\n\
-    socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
-done\n\
-\n\
-if [ -n "$PORT" ] && [ "$PORT" != "8080" ]; then\n\
-    socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
-fi\n\
-\n\
-exec websockify --web=/usr/share/novnc/ 8080 localhost:5901\n\
-' > /start.sh && chmod +x /start.sh
-
+# ২০টি পোর্ট EXPOSE
 EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089
 
-CMD ["/start.sh"]
+# মাল্টি-পোর্ট লিসেনিং ও স্টার্টআপ কমান্ড
+CMD ["sh", "-c", "rm -rf /tmp/.X*-lock /tmp/.X11-unix/X* && vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None && for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null & done && if [ -n \"$PORT\" ] && [ \"$PORT\" != \"8080\" ]; then socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null & fi && websockify --web=/usr/share/novnc/ 8080 localhost:5901"]
