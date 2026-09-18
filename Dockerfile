@@ -1,159 +1,143 @@
-FROM ubuntu:22.04
+FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV USER=root
-ENV DISPLAY=:1
+ENV RESOLUTION=1280x720
+ENV BRAND_NAME="Dark Killer"
 
-# ১. সিস্টেম টুলস, XFCE4, কালারফুল আইকন এবং মিসিং X11 ফন্টস ইনস্টল (ফিক্সড এরর সমাধান)
+# কাস্টম ইন্ডিয়ান/বিডি প্রক্সি থাকলে নিচে দিতে পারেন (যেমন: "103.xxx.xxx.xxx:8080"), খালি রাখলে অটো ইন্ডিয়ান টানেল ব্যবহার হবে
+ENV CUSTOM_PROXY=""
+
+# প্রয়োজনীয় প্যাকেজ, ফন্টস এবং টানেল ইঞ্জিন ইনস্টল
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    curl \
+    ca-certificates \
     xfce4 \
-    xfce4-goodies \
-    tightvncserver \
+    xfce4-terminal \
+    tigervnc-standalone-server \
     novnc \
     websockify \
-    curl \
-    wget \
-    git \
+    firefox \
     dbus-x11 \
-    x11-xserver-utils \
-    xauth \
+    feh \
+    socat \
+    tor \
     xfonts-base \
     xfonts-75dpi \
     xfonts-100dpi \
     xfonts-scalable \
-    papirus-icon-theme \
-    python3 \
-    python3-pip \
-    ca-certificates \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ২. পাইথন অটোমেশন প্যাকেজ
-RUN pip3 install selenium requests
+# টর টানেলকে ইন্ডিয়ান আইপি জোরপূর্বক ব্যবহারের জন্য কনফিগার করা
+RUN echo 'SocksPort 127.0.0.1:9050\n\
+ExitNodes {in}\n\
+StrictNodes 0\n\
+NumEntryGuards 3\n\
+ClientOnly 1\n\
+' > /etc/tor/torrc
 
-# ৩. কাস্টম লোগো ও ফেভআইকন ডাউনলোড
-RUN mkdir -p /usr/share/novnc/images/icons /root/.vnc
-RUN curl -L -s -o /usr/share/novnc/images/custom_logo.png "https://raw.githubusercontent.com/adminnirobvai1-ux/Pi/refs/heads/main/IMG_20260917_235840_557.jpg"
+# ফায়ারফক্স ব্রাউজারে ব্লক-বাইপাস এবং অটোমেটিক প্রক্সি পলিসি সেট করা
+RUN mkdir -p /usr/lib/firefox/distribution && \
+    echo '{\n\
+  "policies": {\n\
+    "DisableAppUpdate": true,\n\
+    "Preferences": {\n\
+      "network.proxy.type": 1,\n\
+      "network.proxy.socks": "127.0.0.1",\n\
+      "network.proxy.socks_port": 9050,\n\
+      "network.proxy.socks_version": 5,\n\
+      "network.proxy.socks_remote_dns": true,\n\
+      "network.dns.echconfig.enabled": false,\n\
+      "network.http.referer.XOriginPolicy": 0,\n\
+      "privacy.resistFingerprinting": false\n\
+    }\n\
+  }\n\
+}' > /usr/lib/firefox/distribution/policies.json
 
-# ফেভআইকন ও সাইড আইকন রিপ্লেস
-RUN cp /usr/share/novnc/images/custom_logo.png /usr/share/novnc/favicon.ico && \
-    cp /usr/share/novnc/images/custom_logo.png /usr/share/novnc/app/images/icons/novnc-192x192.png 2>/dev/null || true
+# ব্যানার ডাউনলোড ও ব্যাকগ্রাউন্ড রিপ্লেস
+RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
+    curl -fsSL "https://raw.githubusercontent.com/adminnirobvai1-ux/drx/refs/heads/main/1789570402521.png" -o /usr/share/backgrounds/custom_bg.png && \
+    cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-blue.jpg && \
+    cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-stripes.png && \
+    cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg && \
+    find /usr/share/backgrounds -type f -exec cp /usr/share/backgrounds/custom_bg.png {} + 2>/dev/null || true
 
-# ৪. ওয়েব ইন্টারফেস টাইটেল, Dark Killer নাম ও টেলিগ্রাম বাটন ইনজেকশন
-RUN sed -i 's/<title>.*<\/title>/<title>DRX-TM | Dark Killer<\/title>/g' /usr/share/novnc/vnc.html
+# ব্যানার ফিট কনফিগারেশন
+RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfconf/xfce-perchannel-xml && \
+    echo '<?xml version="1.0" encoding="UTF-8"?>\n\
+<channel name="xfce4-desktop" version="1.0">\n\
+  <property name="backdrop" type="empty">\n\
+    <property name="screen0" type="empty">\n\
+      <property name="monitor0" type="empty">\n\
+        <property name="workspace0" type="empty">\n\
+          <property name="image-style" type="int" value="5"/>\n\
+          <property name="last-image" type="string" value="/usr/share/backgrounds/custom_bg.png"/>\n\
+        </property>\n\
+      </property>\n\
+    </property>\n\
+  </property>\n\
+</channel>' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml && \
+    cp /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/
 
-RUN sed -i '/<div class="noVNC_logo"/a \
-<div style="color: #00f2fe; font-size: 22px; font-weight: 900; margin: 15px 0 10px 0; text-align: center; text-shadow: 0 0 15px #00f2fe; letter-spacing: 2px;">DARK KILLER</div>' /usr/share/novnc/vnc.html
+# টার্মিনাল ব্যানার ও প্রম্পট
+RUN echo 'export PS1="\[\e[1;31m\][Dark-Killer]\[\e[0m\]:\w# "' >> /root/.bashrc && \
+    echo 'echo -e "\n============================================\n   Welcome to Dark Killer Remote Desktop\n============================================\n"' >> /root/.bashrc
 
-RUN sed -i '/id="noVNC_connect_button"/a \
-<div style="margin-top: 18px; text-align: center;">\
-  <a href="https://t.me/DARK67HACK" target="_blank" id="custom_tg_btn">📢 JOIN TELEGRAM CHANNEL</a>\
-</div>' /usr/share/novnc/vnc.html
-
-# ৫. নিয়ন ব্লু গোল লোগো, পালস বাটন ও টেলিগ্রাম বাটনের CSS
-RUN echo '\n\
-/* --- DRX-TM BRANDING CSS --- */\n\
-#noVNC_connect_dlg .noVNC_logo {\n\
-    background-image: url("images/custom_logo.png") !important;\n\
-    background-repeat: no-repeat !important;\n\
-    background-position: center !important;\n\
-    background-size: cover !important;\n\
-    width: 140px !important;\n\
-    height: 140px !important;\n\
-    margin: 5px auto 0 auto !important;\n\
-    border-radius: 50% !important;\n\
-    border: 3px solid #00f2fe !important;\n\
-    box-shadow: 0 0 25px rgba(0, 242, 254, 0.8), inset 0 0 10px rgba(0, 242, 254, 0.5) !important;\n\
-    font-size: 0 !important;\n\
-}\n\
-#noVNC_connect_button {\n\
-    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;\n\
-    color: #ffffff !important;\n\
-    font-weight: 800 !important;\n\
-    font-size: 15px !important;\n\
-    border: none !important;\n\
-    border-radius: 30px !important;\n\
-    padding: 12px 32px !important;\n\
-    box-shadow: 0 0 15px rgba(0, 198, 255, 0.6) !important;\n\
-    cursor: pointer !important;\n\
-    animation: neon-pulse 1.8s infinite alternate !important;\n\
-    transition: transform 0.2s ease !important;\n\
-}\n\
-#noVNC_connect_button:hover {\n\
-    transform: scale(1.06) !important;\n\
-}\n\
-#custom_tg_btn {\n\
-    display: inline-block;\n\
-    background: linear-gradient(135deg, #0088cc 0%, #005f8f 100%);\n\
-    color: #ffffff;\n\
-    text-decoration: none;\n\
-    font-size: 13px;\n\
-    font-weight: 700;\n\
-    padding: 10px 24px;\n\
-    border-radius: 25px;\n\
-    border: 1px solid #00c6ff;\n\
-    box-shadow: 0 0 12px rgba(0, 136, 204, 0.6);\n\
-    transition: 0.3s all ease;\n\
-}\n\
-#custom_tg_btn:hover {\n\
-    box-shadow: 0 0 20px rgba(0, 242, 254, 0.9);\n\
-    transform: translateY(-2px);\n\
-}\n\
-@keyframes neon-pulse {\n\
-    0% { box-shadow: 0 0 8px rgba(0, 242, 254, 0.4); }\n\
-    100% { box-shadow: 0 0 25px rgba(0, 242, 254, 0.9); }\n\
-}\n\
-' >> /usr/share/novnc/app/styles/base.css
-
-# ৬. রঙিন টার্মিনাল ব্যানার (DRX-TM) এবং প্রম্পট কনফিগারেশন
-RUN echo '\n\
-clear\n\
-echo -e "\033[1;36m===================================================================\033[0m"\n\
-echo -e "\033[1;31m8888888b.  8888888b.  Y88b   d88P     88888888888 888b     d888 \033[0m"\n\
-echo -e "\033[1;31m888  \"Y88b 888   Y88b  Y88b d88P          888     8888b   d8888 \033[0m"\n\
-echo -e "\033[1;33m888    888 888    888   Y88o88P           888     88888b.d88888 \033[0m"\n\
-echo -e "\033[1;33m888    888 888   d88P    Y888P            888     888Y88888P888 \033[0m"\n\
-echo -e "\033[1;32m888    888 8888888P\"     d888b            888     888 Y888P 888 \033[0m"\n\
-echo -e "\033[1;32m888    888 888 T88b     d88888b  888888   888     888  Y8P  888 \033[0m"\n\
-echo -e "\033[1;34m888  .d88P 888  T88b   d88P Y88b          888     888   \"   888 \033[0m"\n\
-echo -e "\033[1;35m8888888P\"  888   T88b d88P   Y88b         888     888       888 \033[0m"\n\
-echo -e "\033[1;36m===================================================================\033[0m"\n\
-echo -e "\033[1;32m   [+] Developer : Dark Killer | DRX-TM Desktop v2.0               \033[0m"\n\
-echo -e "\033[1;35m   [+] Telegram  : https://t.me/DARK67HACK                         \033[0m"\n\
-echo -e "\033[1;36m===================================================================\033[0m\n"\n\
-export PS1="\\[\\033[1;31m\\][\\033[1;33mDRX\\033[1;32m-TM\\]\\033[1;36m:\\w\\[\\033[0m\\]\\$ "\n\
-' >> /root/.bashrc
-
-# ৭. উইন্ডো বর্ডারে নিয়ন ব্লু গ্লো স্টাইলিং (GTK 3.0)
-RUN mkdir -p /root/.config/gtk-3.0 && echo '\n\
-window.csd decoration, window.solid-csd decoration {\n\
-    box-shadow: 0 0 10px #00f2fe;\n\
-    border: 2px solid #00f2fe;\n\
-}\n\
-#XfcePanelWindow {\n\
-    background-color: rgba(18, 18, 24, 0.95);\n\
-    border-top: 2px solid #00f2fe;\n\
-}\n\
-' >> /root/.config/gtk-3.0/gtk.css
-
-# ৮. Xstartup কনফিগারেশন ও কালারফুল Papirus আইকন প্যাক সক্রিয় করা
-RUN echo '#!/bin/bash\n\
+# VNC ও স্টার্টআপ কনফিগারেশন
+RUN mkdir -p /root/.vnc && \
+    touch /root/.Xauthority && \
+    echo "securitytypes=None" > /root/.vnc/config && \
+    echo '#!/bin/bash\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\
-xfconf-query -c xsettings -p /Net/IconThemeName -s "Papirus-Dark" --create -t string 2>/dev/null || true\n\
-startxfce4 &\n\
-' > /root/.vnc/xstartup && chmod +x /root/.vnc/xstartup
+export DISPLAY=:1\n\
+( \n\
+  sleep 2\n\
+  for p in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "last-image"); do \n\
+    xfconf-query -c xfce4-desktop -p "$p" -s /usr/share/backgrounds/custom_bg.png 2>/dev/null \n\
+  done \n\
+  for p in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-style"); do \n\
+    xfconf-query -c xfce4-desktop -p "$p" -s 5 2>/dev/null \n\
+  done \n\
+  xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-title -s "Dark Killer" --create -t string 2>/dev/null \n\
+  xfconf-query -c xfce4-panel -p /plugins/plugin-1/show-button-title -s true --create -t bool 2>/dev/null \n\
+) &\n\
+exec startxfce4' > /root/.vnc/xstartup && \
+    chmod +x /root/.vnc/xstartup && \
+    ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# ৯. মূল এন্ট্রি স্ক্রিপ্ট
+# ব্রাউজার টাইটেল ও স্কেলিং
+RUN sed -i 's/<title>noVNC<\/title>/<title>Dark Killer<\/title>/g' /usr/share/novnc/vnc.html && \
+    sed -i "s/'resize', 'off'/'resize', 'scale'/g" /usr/share/novnc/app/ui.js 2>/dev/null || true
+
+# রানটাইম স্টার্টআপ স্ক্রিপ্ট
 RUN echo '#!/bin/bash\n\
-rm -rf /tmp/.X* /tmp/.x*\n\
-mkdir -p /root/.vnc\n\
-echo "123456" | vncpasswd -f > /root/.vnc/passwd\n\
-chmod 600 /root/.vnc/passwd\n\
-vncserver :1 -geometry 1280x720 -depth 24\n\
-websockify --web=/usr/share/novnc/ 0.0.0.0:${PORT:-8080} localhost:5901\n\
-' > /entrypoint.sh && chmod +x /entrypoint.sh
+rm -rf /tmp/.X*-lock /tmp/.X11-unix/X*\n\
+touch /root/.Xauthority\n\
+\n\
+# কাস্টম প্রক্সি থাকলে পলিসিতে বসানো, না থাকলে ব্যাকগ্রাউন্ড টর চালু\n\
+if [ -n "$CUSTOM_PROXY" ]; then\n\
+    IP=$(echo $CUSTOM_PROXY | cut -d: -f1)\n\
+    PORT=$(echo $CUSTOM_PROXY | cut -d: -f2)\n\
+    sed -i "s/127.0.0.1/$IP/g" /usr/lib/firefox/distribution/policies.json\n\
+    sed -i "s/9050/$PORT/g" /usr/lib/firefox/distribution/policies.json\n\
+else\n\
+    service tor start\n\
+fi\n\
+\n\
+vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None\n\
+\n\
+for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do\n\
+    socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
+done\n\
+\n\
+if [ -n "$PORT" ] && [ "$PORT" != "8080" ]; then\n\
+    socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
+fi\n\
+\n\
+exec websockify --web=/usr/share/novnc/ 8080 localhost:5901\n\
+' > /start.sh && chmod +x /start.sh
 
-EXPOSE 8080
+EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089
 
-CMD ["/entrypoint.sh"]
+CMD ["/start.sh"]
