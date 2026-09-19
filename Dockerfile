@@ -1,7 +1,6 @@
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-# স্ট্যান্ডার্ড HD সাইজ দেওয়া হলো যাতে স্ক্রিন সুন্দর দেখায় এবং ব্যানার পারফেক্টলি ফিট হয়
 ENV RESOLUTION=1280x720
 ENV BRAND_NAME="Dark Killer"
 
@@ -21,23 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     && rm -rf /var/lib/apt/lists/*
 
-# ফায়ারফক্সে অটোমেটিক ফাস্ট ভিপিএন এক্সটেনশন (Browsec) এবং DNS সেটআপ
-RUN mkdir -p /usr/lib/firefox/distribution && \
-    echo '{\n\
-  "policies": {\n\
-    "Preferences": {\n\
-      "network.trr.mode": 2,\n\
-      "network.trr.uri": "https://mozilla.cloudflare-dns.com/dns-query"\n\
-    },\n\
-    "ExtensionSettings": {\n\
-      "browsec@browsec.com": {\n\
-        "installation_mode": "force_installed",\n\
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/browsec/latest.xpi"\n\
-      }\n\
-    }\n\
-  }\n\
-}' > /usr/lib/firefox/distribution/policies.json
-
 # ব্যানার ডাউনলোড ও ব্যাকগ্রাউন্ড রিপ্লেস
 RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
     curl -fsSL "https://raw.githubusercontent.com/adminnirobvai1-ux/drx/refs/heads/main/1789570402521.png" -o /usr/share/backgrounds/custom_bg.png && \
@@ -46,7 +28,7 @@ RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg && \
     find /usr/share/backgrounds -type f -exec cp /usr/share/backgrounds/custom_bg.png {} + 2>/dev/null || true
 
-# ব্যানার ফিট কনফিগারেশন (image-style = 5 ব্যবহার করা হয়েছে যাতে ছবি অরজিনাল রেশিও বজায় রাখে)
+# ব্যানার ফিট কনফিগারেশন
 RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfconf/xfce-perchannel-xml && \
     echo '<?xml version="1.0" encoding="UTF-8"?>\n\
 <channel name="xfce4-desktop" version="1.0">\n\
@@ -67,7 +49,7 @@ RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfcon
 RUN echo 'export PS1="\[\e[1;31m\][Dark-Killer]\[\e[0m\]:\w# "' >> /root/.bashrc && \
     echo 'echo -e "\n============================================\n   Welcome to Dark Killer Remote Desktop\n============================================\n"' >> /root/.bashrc
 
-# VNC ও স্টার্টআপ স্ক্রিপ্ট (এখানেও image-style 5 সেট করা আছে)
+# VNC ও স্টার্টআপ স্ক্রিপ্ট
 RUN mkdir -p /root/.vnc && \
     echo "securitytypes=None" > /root/.vnc/config && \
     echo '#!/bin/bash\n\
